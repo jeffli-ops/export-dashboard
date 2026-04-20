@@ -186,7 +186,8 @@
           download: true,
           header: true,
           skipEmptyLines: true,
-          encoding: "GBK", // 恢复 GBK 编码以支持中文导出的 CSV
+          // 如果你的 CSV 已经是 UTF-8，去掉下面这行 encoding；如果是 GBK，加上这行
+          // encoding: "GBK", 
           complete: function(results) {
             processData(results.data);
             filesProcessed++;
