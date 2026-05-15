@@ -23,6 +23,23 @@
     .checkbox-group { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; background: #fafafa; padding: 10px; border-radius: 4px; border: 1px solid #eee; }
     .checkbox-group label { display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: normal; user-select: none; }
     .checkbox-group input[type="checkbox"] { margin: 0; width: 16px; height: 16px; cursor: pointer; }
+    .hs-code-notes { margin-top: 8px; color: #666; font-size: 13px; line-height: 1.7; }
+    .hs-code-notes div { margin: 2px 0; }
+    .export-module h2 { margin-top: 0; }
+    .export-entry { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+    .export-entry p { margin: 0; color: #666; font-size: 13px; }
+    .export-modal { display: none; position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.35); padding: 30px; box-sizing: border-box; }
+    .export-modal-content { background: #fff; max-width: 900px; max-height: calc(100vh - 60px); overflow-y: auto; margin: 0 auto; padding: 22px; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
+    .export-modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 18px; }
+    .export-modal-header h2 { border-bottom: none; padding-bottom: 0; margin: 0 0 12px; }
+    .modal-close-btn { background: #999; padding: 6px 12px; }
+    .modal-close-btn:hover { background: #777; }
+    .export-options { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+    .export-country-list { max-height: 220px; overflow-y: auto; align-items: flex-start; flex-direction: column; flex-wrap: nowrap; }
+    .export-country-list label { width: 100%; }
+    .selected-country-summary { color: #666; font-size: 13px; line-height: 1.6; background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: 8px 10px; }
+    .export-actions { display: flex; gap: 12px; align-items: center; margin-top: 15px; }
+    #exportStatus { color: #666; font-size: 13px; }
 
     /* 表格及导出按钮样式 */
     .table-container { overflow-x: auto; margin-top: 15px; }
@@ -64,7 +81,8 @@
         </select>
       </div>
       <div class="control-group" id="countryFilter" style="display: none;">
-        <label for="countrySelect"><strong>3. 选择贸易国家: </strong></label>
+        <label for="countrySearch"><strong>3. 选择贸易国家: </strong></label>
+        <input type="text" id="countrySearch" placeholder="输入国家名检索">
         <select id="countrySelect">
           <option value="ALL">全部国家</option>
         </select>
@@ -76,16 +94,77 @@
       <div class="control-group" id="hsCodeFilter" style="display: none; width: 100%;">
         <label><strong>5. 选择维度一参与累计的商品编码 (支持多选): </strong></label>
         <div id="hsCodeCheckboxes" class="checkbox-group"></div>
+        <div class="hs-code-notes">
+          <div>85434000：Device of HNB+Vape</div>
+          <div>24041200、24041990：Pod+Disposable品类</div>
+          <div>85439090：包含了非电子烟产品，不是专属电子烟编码，一般默认不勾选，参考意义有限。</div>
+        </div>
       </div>
     </div>
     <div id="statusMessage"></div>
+  </div>
+
+  <div class="card export-module" id="exportModule" style="display:none;">
+    <div class="export-entry">
+      <div>
+        <h2>数据导出模块</h2>
+        <p>点击按钮后选择国家、月份、编码和增长率指标，导出月度累计 CSV 文件。</p>
+      </div>
+      <button onclick="openExportModal()">打开导出模块</button>
+    </div>
+  </div>
+
+  <div class="export-modal" id="exportModal">
+    <div class="export-modal-content">
+      <div class="export-modal-header">
+        <h2>数据导出模块</h2>
+        <button class="modal-close-btn" onclick="closeExportModal()">关闭</button>
+      </div>
+      <div class="export-options">
+        <div class="control-group" style="width: 100%;">
+          <label><strong>选择导出国家 (支持多选): </strong></label>
+          <input type="text" id="exportCountrySearch" placeholder="输入国家名检索">
+          <div id="selectedCountrySummary" class="selected-country-summary">已选择：全部国家</div>
+          <div id="exportCountryCheckboxes" class="checkbox-group export-country-list"></div>
+        </div>
+        <div class="control-group" style="width: 100%;">
+          <label><strong>选择导出月份 (支持多选): </strong></label>
+          <div id="exportMonthCheckboxes" class="checkbox-group"></div>
+        </div>
+        <div class="control-group" style="width: 100%;">
+          <label><strong>选择导出商品编码 (支持多选): </strong></label>
+          <div id="exportHsCodeCheckboxes" class="checkbox-group"></div>
+        </div>
+        <div class="control-group">
+          <label><strong>选择导出数据类型: </strong></label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" class="export-data-type" value="byCode" checked> 分编码数据</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label><strong>选择导出增长率: </strong></label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="exportMoM" checked> 环比增长率</label>
+            <label><input type="checkbox" id="exportYoY" checked> 同比增长率</label>
+          </div>
+        </div>
+      </div>
+      <div class="export-actions">
+        <button onclick="exportCustomData()">导出所选数据</button>
+        <span id="exportStatus"></span>
+      </div>
+    </div>
   </div>
 
   <div id="dashboard" style="display:none;">
     <div class="card">
       <h2>维度一：按月份看累计出口额（所有编码出口额总和）及环比/同比增长率</h2>
       <div id="chartAll" class="chart-container"></div>
-      
+      <div style="margin-top: 10px; text-align: right;">
+        <label style="font-weight: bold; color: #000;"><input type="checkbox" id="showChartAllDataTable"> 展示柱状图详细数据</label>
+      </div>
+      <div id="chartAllDataTableContainer" class="table-container" style="display:none;"></div>
+
       <div class="header-row">
         <h3>所选月份累计明细表 (按出口总额排序)</h3>
         <button class="export-btn" onclick="exportTableToCSV('tableAllContainer', '维度一_出口总额明细.csv')">导出表格数据</button>
@@ -137,6 +216,7 @@
 
     let chartAllInstance = null;
     let chartSeparateInstance = null;
+    let exportSelectedCountries = new Set();
 
     window.onload = function() {
       if (typeof echarts === 'undefined' || typeof Papa === 'undefined') {
@@ -147,7 +227,14 @@
     };
 
     document.getElementById('regionSelect').addEventListener('change', () => {
+      document.getElementById('countrySearch').value = '';
       updateCountryDropdown();
+      updateDashboard();
+      renderTables();
+    });
+
+    document.getElementById('countrySearch').addEventListener('input', () => {
+      updateCountryDropdown(true);
       updateDashboard();
       renderTables();
     });
@@ -155,6 +242,18 @@
     document.getElementById('countrySelect').addEventListener('change', () => {
       updateDashboard();
       renderTables();
+    });
+
+    document.getElementById('exportCountrySearch').addEventListener('input', () => {
+      renderExportCountryCheckboxes();
+    });
+
+    document.getElementById('exportModal').addEventListener('click', (event) => {
+      if (event.target.id === 'exportModal') closeExportModal();
+    });
+
+    document.getElementById('showChartAllDataTable').addEventListener('change', () => {
+      updateDashboard();
     });
 
     function showStatus(msg, isError = false) {
@@ -252,17 +351,22 @@
       });
     }
 
-    function updateCountryDropdown() {
+    function updateCountryDropdown(autoSelect = false) {
       const region = document.getElementById('regionSelect').value;
       const countrySelect = document.getElementById('countrySelect');
-      
+      const searchText = document.getElementById('countrySearch').value.trim().toLowerCase();
+      const currentValue = countrySelect.value;
+
       countrySelect.innerHTML = '<option value="ALL">全部国家</option>';
-      
+
       let filteredCountries = allCountries;
       if (region !== 'ALL') {
         filteredCountries = allCountries.filter(c => getRegion(c) === region);
       }
-      
+      if (searchText) {
+        filteredCountries = filteredCountries.filter(c => c.toLowerCase().includes(searchText));
+      }
+
       filteredCountries.forEach(c => {
         if(c) {
           let opt = document.createElement('option');
@@ -271,6 +375,15 @@
           countrySelect.appendChild(opt);
         }
       });
+
+      if (!searchText) {
+        countrySelect.value = 'ALL';
+      } else if (autoSelect) {
+        const exactMatch = filteredCountries.find(c => c.toLowerCase() === searchText);
+        countrySelect.value = exactMatch || (filteredCountries.length === 1 ? filteredCountries[0] : 'ALL');
+      } else {
+        countrySelect.value = filteredCountries.includes(currentValue) ? currentValue : 'ALL';
+      }
     }
 
     function buildDashboard() {
@@ -316,7 +429,7 @@
         cb.type = 'checkbox';
         cb.value = code;
         cb.className = 'hscode-cb';
-        cb.checked = true;
+        cb.checked = code !== '85439090';
         cb.addEventListener('change', () => {
           updateDashboard();
           renderTables();
@@ -331,7 +444,9 @@
       document.getElementById('countryFilter').style.display = 'flex';
       document.getElementById('monthFilter').style.display = 'flex';
       document.getElementById('hsCodeFilter').style.display = 'flex';
+      document.getElementById('exportModule').style.display = 'block';
       document.getElementById('dashboard').style.display = 'block';
+      buildExportModule();
 
       if (!chartAllInstance) chartAllInstance = echarts.init(document.getElementById('chartAll'));
       if (!chartSeparateInstance) chartSeparateInstance = echarts.init(document.getElementById('chartSeparate'));
@@ -663,6 +778,7 @@
       });
       let mom = calculateMoM(monthlyValues);
       let yoy = calculateYoY(monthlyValues, allMonths);
+      renderChartAllDataTable(monthlyValues, mom, yoy);
 
       let option = {
         tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
@@ -680,6 +796,45 @@
         ]
       };
       chartAllInstance.setOption(option, true);
+    }
+
+    function renderChartAllDataTable(monthlyValues, mom, yoy) {
+      const checkbox = document.getElementById('showChartAllDataTable');
+      const container = document.getElementById('chartAllDataTableContainer');
+
+      if (!checkbox.checked) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+
+      let tableHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>月份</th>
+              <th>总出口额 (美元)</th>
+              <th>环比增长率 (%)</th>
+              <th>同比增长率 (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      allMonths.forEach((month, idx) => {
+        tableHTML += `
+          <tr>
+            <td class="text-center">${month}</td>
+            <td>${Math.round(monthlyValues[idx]).toLocaleString('en-US')}</td>
+            <td class="text-center">${mom[idx] === null ? '-' : mom[idx] + '%'}</td>
+            <td class="text-center">${yoy[idx] === null ? '-' : yoy[idx] + '%'}</td>
+          </tr>
+        `;
+      });
+
+      tableHTML += '</tbody></table>';
+      container.innerHTML = tableHTML;
+      container.style.display = 'block';
     }
 
     function renderChartSeparate(data, selectedHsCodes) {
@@ -717,6 +872,299 @@
         series: series
       };
       chartSeparateInstance.setOption(option, true);
+    }
+
+    function openExportModal() {
+      document.getElementById('exportModal').style.display = 'block';
+    }
+
+    function closeExportModal() {
+      document.getElementById('exportModal').style.display = 'none';
+    }
+
+    function buildExportModule() {
+      renderExportCountryCheckboxes();
+
+      const monthContainer = document.getElementById('exportMonthCheckboxes');
+      monthContainer.innerHTML = '';
+      allMonths.forEach((month, idx) => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'export-month-cb';
+        checkbox.value = month;
+        checkbox.checked = idx === allMonths.length - 1;
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(month));
+        monthContainer.appendChild(label);
+      });
+
+      const hsCodeContainer = document.getElementById('exportHsCodeCheckboxes');
+      hsCodeContainer.innerHTML = '';
+      allHsCodes.forEach(code => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'export-hscode-cb';
+        checkbox.value = code;
+        checkbox.checked = code !== '85439090';
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(code));
+        hsCodeContainer.appendChild(label);
+      });
+    }
+
+    function updateSelectedCountrySummary() {
+      const summary = document.getElementById('selectedCountrySummary');
+      const allCheckbox = document.getElementById('exportCountryAll');
+      if (!summary) return;
+
+      if (!allCheckbox || allCheckbox.checked || exportSelectedCountries.size === 0) {
+        summary.innerText = '已选择：全部国家';
+        return;
+      }
+
+      summary.innerText = `已选择 ${exportSelectedCountries.size} 个国家：${Array.from(exportSelectedCountries).join('、')}`;
+    }
+
+    function renderExportCountryCheckboxes() {
+      const container = document.getElementById('exportCountryCheckboxes');
+      const searchText = document.getElementById('exportCountrySearch').value.trim().toLowerCase();
+      const existingAll = document.getElementById('exportCountryAll');
+      const allChecked = existingAll ? existingAll.checked : exportSelectedCountries.size === 0;
+      document.querySelectorAll('.export-country-cb').forEach(cb => {
+        if (cb.checked) exportSelectedCountries.add(cb.value);
+        else exportSelectedCountries.delete(cb.value);
+      });
+      const filteredCountries = searchText ? allCountries.filter(c => c.toLowerCase().includes(searchText)) : allCountries;
+
+      container.innerHTML = '';
+
+      const allLabel = document.createElement('label');
+      const allCheckbox = document.createElement('input');
+      allCheckbox.type = 'checkbox';
+      allCheckbox.id = 'exportCountryAll';
+      allCheckbox.value = 'ALL';
+      allCheckbox.checked = allChecked;
+      allCheckbox.addEventListener('change', () => {
+        if (allCheckbox.checked) {
+          exportSelectedCountries.clear();
+          document.querySelectorAll('.export-country-cb').forEach(cb => cb.checked = false);
+        }
+        updateSelectedCountrySummary();
+      });
+      allLabel.appendChild(allCheckbox);
+      allLabel.appendChild(document.createTextNode('全部国家'));
+      container.appendChild(allLabel);
+
+      filteredCountries.forEach(country => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'export-country-cb';
+        checkbox.value = country;
+        checkbox.checked = !allChecked && exportSelectedCountries.has(country);
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            exportSelectedCountries.add(country);
+            document.getElementById('exportCountryAll').checked = false;
+          } else {
+            exportSelectedCountries.delete(country);
+          }
+          updateSelectedCountrySummary();
+        });
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(country));
+        container.appendChild(label);
+      });
+
+      updateSelectedCountrySummary();
+    }
+
+    function getCheckedValues(selector) {
+      return Array.from(document.querySelectorAll(selector)).filter(cb => cb.checked).map(cb => cb.value);
+    }
+
+    function getExportCountries() {
+      document.querySelectorAll('.export-country-cb').forEach(cb => {
+        if (cb.checked) exportSelectedCountries.add(cb.value);
+        else exportSelectedCountries.delete(cb.value);
+      });
+      if (document.getElementById('exportCountryAll').checked) return allCountries;
+      return Array.from(exportSelectedCountries);
+    }
+
+    function sumExportValue(country, months, codes, targetCode = null) {
+      return rawData
+        .filter(d => d.country === country && months.includes(d.month) && codes.includes(d.hsCode) && (!targetCode || d.hsCode === targetCode))
+        .reduce((sum, d) => sum + d.value, 0);
+    }
+
+    function getPreviousPeriodMonths(selectedMonths) {
+      const monthIndices = selectedMonths.map(m => allMonths.indexOf(m)).filter(i => i >= 0).sort((a, b) => a - b);
+      const count = monthIndices.length;
+      const firstIndex = monthIndices[0];
+      const prevMonths = [];
+      for (let i = 1; i <= count; i++) {
+        if (firstIndex - i >= 0) prevMonths.push(allMonths[firstIndex - i]);
+      }
+      return prevMonths;
+    }
+
+    function getPreviousMonth(month) {
+      const index = allMonths.indexOf(month);
+      return index > 0 ? allMonths[index - 1] : null;
+    }
+
+    function getYoYMonth(month) {
+      return month.replace(/\d{4}/, year => String(parseInt(year) - 1));
+    }
+
+    function formatExportAmount(value) {
+      return Math.round(value);
+    }
+
+    function formatExportGrowth(current, previous) {
+      if (previous > 0) return Math.round(((current - previous) / previous) * 100) + '%';
+      if (current > 0 && previous === 0) return '净增长';
+      return '';
+    }
+
+    function csvLine(values) {
+      return values.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',');
+    }
+
+    function downloadCSV(filename, lines) {
+      const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    }
+
+    function buildExportHeader(selectedCodes, includeMoM, includeYoY) {
+      const header = ['国家', '月份', '累计出口额'];
+      if (includeMoM) header.push('累计环比增长率');
+      if (includeYoY) header.push('累计同比增长率');
+      selectedCodes.forEach(code => {
+        header.push(`${code}出口额`);
+        if (includeMoM) header.push(`${code}环比增长率`);
+        if (includeYoY) header.push(`${code}同比增长率`);
+      });
+      return header;
+    }
+
+    function buildMonthlyExportRow(country, month, selectedCodes, includeMoM, includeYoY) {
+      const previousMonth = getPreviousMonth(month);
+      const previousMonths = previousMonth ? [previousMonth] : [];
+      const yoyMonths = [getYoYMonth(month)];
+      const currentMonths = [month];
+      const totalCurrent = sumExportValue(country, currentMonths, selectedCodes);
+      const totalPrevious = sumExportValue(country, previousMonths, selectedCodes);
+      const totalYoY = sumExportValue(country, yoyMonths, selectedCodes);
+      const row = [country, month, formatExportAmount(totalCurrent)];
+
+      if (includeMoM) row.push(formatExportGrowth(totalCurrent, totalPrevious));
+      if (includeYoY) row.push(formatExportGrowth(totalCurrent, totalYoY));
+
+      selectedCodes.forEach(code => {
+        const current = sumExportValue(country, currentMonths, selectedCodes, code);
+        const previous = sumExportValue(country, previousMonths, selectedCodes, code);
+        const yoy = sumExportValue(country, yoyMonths, selectedCodes, code);
+        row.push(formatExportAmount(current));
+        if (includeMoM) row.push(formatExportGrowth(current, previous));
+        if (includeYoY) row.push(formatExportGrowth(current, yoy));
+      });
+      return row;
+    }
+
+    function exportCustomData() {
+      const selectedCountries = getExportCountries();
+      const selectedMonths = getCheckedValues('.export-month-cb').sort((a, b) => allMonths.indexOf(a) - allMonths.indexOf(b));
+      const selectedCodes = getCheckedValues('.export-hscode-cb');
+      const includeMoM = document.getElementById('exportMoM').checked;
+      const includeYoY = document.getElementById('exportYoY').checked;
+      const exportStatus = document.getElementById('exportStatus');
+
+      if (selectedCountries.length === 0) {
+        exportStatus.innerText = '请至少选择一个国家，或选择全部国家。';
+        return;
+      }
+      if (selectedMonths.length === 0) {
+        exportStatus.innerText = '请至少选择一个月份。';
+        return;
+      }
+      if (selectedCodes.length === 0) {
+        exportStatus.innerText = '请至少选择一个商品编码。';
+        return;
+      }
+      const lines = [csvLine(buildExportHeader(selectedCodes, includeMoM, includeYoY))];
+      const sortedCountries = selectedCountries
+        .map(country => ({ country, total: sumExportValue(country, selectedMonths, selectedCodes) }))
+        .sort((a, b) => b.total - a.total)
+        .map(item => item.country);
+
+      selectedMonths.forEach(month => {
+        sortedCountries.forEach(country => {
+          lines.push(csvLine(buildMonthlyExportRow(country, month, selectedCodes, includeMoM, includeYoY)));
+        });
+      });
+
+      downloadCSV(`出口数据导出_${selectedMonths[0]}_${selectedMonths[selectedMonths.length - 1]}.csv`, lines);
+      exportStatus.innerText = '导出完成。';
+    }
+
+    function exportTableToCSV(containerId, filename) {
+      const table = document.querySelector(`#${containerId} table`);
+      if (!table) {
+        showStatus('暂无可导出的表格数据，请先选择月份和商品编码。', true);
+        return;
+      }
+
+      const pendingRowSpans = [];
+      const rows = Array.from(table.rows).map(row => {
+        const csvRow = [];
+        let colIndex = 0;
+
+        Array.from(row.cells).forEach(cell => {
+          while (pendingRowSpans[colIndex] > 0) {
+            csvRow[colIndex] = '';
+            pendingRowSpans[colIndex] -= 1;
+            colIndex += 1;
+          }
+
+          const text = cell.innerText.replace(/\s+/g, ' ').trim();
+          const colSpan = cell.colSpan || 1;
+          const rowSpan = cell.rowSpan || 1;
+
+          for (let i = 0; i < colSpan; i++) {
+            csvRow[colIndex + i] = i === 0 ? text : '';
+            if (rowSpan > 1) pendingRowSpans[colIndex + i] = rowSpan - 1;
+          }
+          colIndex += colSpan;
+        });
+
+        while (pendingRowSpans[colIndex] > 0) {
+          csvRow[colIndex] = '';
+          pendingRowSpans[colIndex] -= 1;
+          colIndex += 1;
+        }
+
+        return csvRow.map(value => `"${String(value || '').replace(/"/g, '""')}"`).join(',');
+      });
+
+      const blob = new Blob(['﻿' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      showStatus(`已导出：${filename}`);
     }
 
     window.addEventListener('resize', () => {
