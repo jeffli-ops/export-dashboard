@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>出口数据看板</title>
+  <title>中国海关出口数据详情</title>
   <script src="https://cdn.staticfile.net/echarts/5.5.0/echarts.min.js"></script>
   <script src="https://cdn.staticfile.net/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
@@ -20,9 +20,10 @@
     #statusMessage { margin-top: 15px; color: #d9534f; font-weight: bold; }
     
     /* 复选框样式 */
-    .checkbox-group { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; background: #fafafa; padding: 10px; border-radius: 4px; border: 1px solid #eee; }
+    .checkbox-group { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; background: #fafafa; padding: 10px; border-radius: 4px; border: 1px solid #eee; font-size: 13px; }
     .checkbox-group label { display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: normal; user-select: none; }
-    .checkbox-group input[type="checkbox"] { margin: 0; width: 16px; height: 16px; cursor: pointer; }
+    .checkbox-group input[type="checkbox"] { margin: 0; width: 14px; height: 14px; cursor: pointer; }
+    .selected-country-summary { font-size: 13px; }
     .hs-code-notes { margin-top: 8px; color: #666; font-size: 13px; line-height: 1.7; }
     .hs-code-notes div { margin: 2px 0; }
     .export-module h2 { margin-top: 0; }
@@ -67,34 +68,41 @@
 
   <div class="card">
     <div class="controls">
-      <div class="control-group" style="width: 100%;">
-        <label><strong>1. 数据源状态: </strong></label>
-        <div style="display: flex; gap: 10px;">
-          <button onclick="loadDataFromUrls()" id="loadBtn">加载线上最新数据</button>
-          <span id="autoLoadHint" style="line-height: 34px; color: #666; font-size: 13px;">(系统会在打开页面时自动尝试加载)</span>
+      <!-- 第一行：数据源、大洲、国家搜索 -->
+      <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; width: 100%; margin-bottom: 12px;">
+        <div class="control-group" style="flex: 0 0 auto;">
+          <label><strong>1. 数据源: </strong></label>
+        <button onclick="loadDataFromUrls()" id="loadBtn">加载数据</button>
+        </div>
+        <div class="control-group" id="regionFilter" style="display: none; flex: 0 0 auto;">
+          <label for="regionSelect"><strong>2. 大洲: </strong></label>
+          <select id="regionSelect">
+          <option value="ALL">全球总计 (所有区域)</option>
+          </select>
+        </div>
+        <div class="control-group" id="countryFilterInput" style="display: none; flex: 1 1 auto; max-width: 400px;">
+        <label for="countrySearch"><strong>3. 国家: </strong></label>
+          <input type="text" id="countrySearch" placeholder="输入国家名检索（点击展开列表）" style="width: 100%;" onfocus="toggleCountryList(true)">
         </div>
       </div>
-      <div class="control-group" id="regionFilter" style="display: none;">
-        <label for="regionSelect"><strong>2. 选择大洲区域: </strong></label>
-        <select id="regionSelect">
-          <option value="ALL">全球总计 (所有区域)</option>
-        </select>
+
+      <!-- 国家选择区（默认隐藏，点击搜索框展开） -->
+      <div id="countryFilter" style="display: none; width: 100%; margin-bottom: 12px;">
+        <div id="selectedMainCountrySummary" class="selected-country-summary" style="margin-bottom: 6px;">已选择：全部国家</div>
+        <div id="countryCheckboxes" class="checkbox-group" style="max-height: 150px; overflow-y: auto; align-items: flex-start; flex-direction: column; flex-wrap: nowrap;"></div>
       </div>
-      <div class="control-group" id="countryFilter" style="display: none;">
-        <label for="countrySearch"><strong>3. 选择贸易国家: </strong></label>
-        <input type="text" id="countrySearch" placeholder="输入国家名检索">
-        <select id="countrySelect">
-          <option value="ALL">全部国家</option>
-        </select>
+
+      <!-- 月份选择 -->
+      <div class="control-group" id="monthFilter" style="display: none; width: 100%; margin-bottom: 12px;">
+        <label><strong>4. 月份 (多选累计): </strong></label>
+        <div id="monthCheckboxes" class="checkbox-group" style="gap: 6px;"></div>
       </div>
-      <div class="control-group" id="monthFilter" style="display: none; width: 100%;">
-        <label><strong>4. 选择表格展示的月份 (支持多选，多选时表格展示累计数据): </strong></label>
-        <div id="monthCheckboxes" class="checkbox-group"></div>
-      </div>
+
+      <!-- 编码选择 -->
       <div class="control-group" id="hsCodeFilter" style="display: none; width: 100%;">
-        <label><strong>5. 选择维度一参与累计的商品编码 (支持多选): </strong></label>
-        <div id="hsCodeCheckboxes" class="checkbox-group"></div>
-        <div class="hs-code-notes">
+        <label><strong>5. 商品编码 (多选): </strong></label>
+        <div id="hsCodeCheckboxes" class="checkbox-group" style="gap: 6px;"></div>
+        <div class="hs-code-notes" style="margin-top: 6px; font-size: 12px;">
           <div>85434000：Device of HNB+Vape</div>
           <div>24041200、24041990：Pod+Disposable品类</div>
           <div>85439090：包含了非电子烟产品，不是专属电子烟编码，一般默认不勾选，参考意义有限。</div>
@@ -173,10 +181,13 @@
         <div class="top-scrollbar" id="topScrollbarAll"><div class="top-scrollbar-inner" id="topScrollbarInnerAll"></div></div>
         <div id="tableAllContainer" class="table-container"></div>
       </div>
+      <div style="margin-top: 8px; color: #999; font-size: 12px; text-align: right;">
+        注：所选国家数大于10时，出口额小于50万美元的国家未在该表展示
+      </div>
     </div>
 
     <div class="card">
-      <h2>维度二：按编码分开看出口额及各自的环比/同比增长率</h2>
+        <h2>维度二：按编码分开看出口额</h2>
       <div id="chartSeparate" class="chart-container"></div>
       
       <div class="header-row">
@@ -194,7 +205,8 @@
     const regionMap = {
       "亚洲": ["日本", "韩国", "印度", "印度尼西亚", "印尼", "越南", "泰国", "马来西亚", "菲律宾", "新加坡", "巴基斯坦", "孟加拉国", "沙特", "阿联酋", "土耳其", "伊朗", "以色列", "香港", "台湾", "澳门", "缅甸", "伊拉克", "哈萨克斯坦", "巴林", "斯里兰卡", "阿曼", "卡塔尔", "科威特", "约旦", "黎巴嫩", "叙利亚", "乌兹别克斯坦", "柬埔寨", "老挝", "文莱", "尼泊尔", "也门", "朝鲜", "蒙古", "马尔代夫", "阿富汗", "塞浦路斯", "格鲁吉亚", "亚美尼亚", "阿塞拜疆", "土库曼斯坦", "塔吉克斯坦", "吉尔吉斯斯坦"],
       "欧洲": ["英国", "德国", "法国", "意大利", "荷兰", "俄罗斯", "西班牙", "瑞士", "比利时", "瑞典", "波兰", "奥地利", "丹麦", "挪威", "芬兰", "葡萄牙", "希腊", "爱尔兰", "捷克", "匈牙利", "罗马尼亚", "乌克兰", "白俄罗斯", "保加利亚", "斯洛伐克", "克罗地亚", "塞尔维亚", "斯洛文尼亚", "立陶宛", "拉脱维亚", "爱沙尼亚", "冰岛", "波黑", "阿尔巴尼亚", "北马其顿", "黑山", "摩尔多瓦", "马耳他", "卢森堡"],
-      "北美洲": ["美国", "加拿大", "墨西哥", "古巴", "哥斯达黎加", "巴拿马", "牙买加", "多米尼加", "洪都拉斯", "萨尔瓦多", "尼加拉瓜", "危地马拉", "海地", "巴哈马", "特立尼达", "巴巴多斯"],
+      "北美洲": ["美国", "加拿大", "墨西哥"],
+      "中南美": ["古巴", "哥斯达黎加", "巴拿马", "牙买加", "多米尼加", "洪都拉斯", "萨尔瓦多", "尼加拉瓜", "危地马拉", "海地", "巴哈马", "特立尼达", "巴巴多斯"],
       "南美洲": ["巴西", "阿根廷", "智利", "哥伦比亚", "秘鲁", "委内瑞拉", "乌拉圭", "厄瓜多尔", "玻利维亚", "巴拉圭", "圭亚那", "苏里南"],
       "非洲": ["南非", "埃及", "尼日利亚", "阿尔及利亚", "摩洛哥", "肯尼亚", "埃塞俄比亚", "加纳", "坦桑尼亚", "安哥拉", "苏丹", "突尼斯", "喀麦隆", "科特迪瓦", "乌干达", "塞内加尔", "赞比亚", "津巴布韦", "莫桑比克", "马达加斯加", "马里", "布基纳法索", "几内亚", "乍得", "卢旺达", "贝宁", "布隆迪", "多哥", "尼日尔", "马拉维", "毛里求斯", "纳米比亚", "刚果", "利比里亚", "博茨瓦纳", "加蓬"],
       "大洋洲": ["澳大利亚", "澳洲", "新西兰", "斐济", "巴布亚新几内亚", "萨摩亚", "瓦努阿图", "所罗门", "汤加"]
@@ -216,6 +228,7 @@
 
     let chartAllInstance = null;
     let chartSeparateInstance = null;
+    let mainSelectedCountries = new Set();
     let exportSelectedCountries = new Set();
 
     window.onload = function() {
@@ -228,20 +241,13 @@
 
     document.getElementById('regionSelect').addEventListener('change', () => {
       document.getElementById('countrySearch').value = '';
-      updateCountryDropdown();
+      updateCountryCheckboxes();
       updateDashboard();
       renderTables();
     });
 
     document.getElementById('countrySearch').addEventListener('input', () => {
-      updateCountryDropdown(true);
-      updateDashboard();
-      renderTables();
-    });
-
-    document.getElementById('countrySelect').addEventListener('change', () => {
-      updateDashboard();
-      renderTables();
+      updateCountryCheckboxes();
     });
 
     document.getElementById('exportCountrySearch').addEventListener('input', () => {
@@ -351,13 +357,33 @@
       });
     }
 
-    function updateCountryDropdown(autoSelect = false) {
+    function updateMainCountrySummary() {
+      const summary = document.getElementById('selectedMainCountrySummary');
+      const allCheckbox = document.getElementById('mainCountryAll');
       const region = document.getElementById('regionSelect').value;
-      const countrySelect = document.getElementById('countrySelect');
-      const searchText = document.getElementById('countrySearch').value.trim().toLowerCase();
-      const currentValue = countrySelect.value;
+      if (!summary) return;
 
-      countrySelect.innerHTML = '<option value="ALL">全部国家</option>';
+      const regionText = region === 'ALL' ? '全球' : region;
+      if (!allCheckbox || allCheckbox.checked || mainSelectedCountries.size === 0) {
+        summary.innerText = '已选择：' + regionText + '全部国家';
+        return;
+      }
+
+      const countryList = Array.from(mainSelectedCountries).join('、');
+    summary.innerText = `已选择 ${mainSelectedCountries.size} 个国家：${countryList}`;
+    }
+
+    function updateCountryCheckboxes() {
+      const region = document.getElementById('regionSelect').value;
+    const container = document.getElementById('countryCheckboxes');
+      const searchText = document.getElementById('countrySearch').value.trim().toLowerCase();
+      const existingAll = document.getElementById('mainCountryAll');
+      const allChecked = existingAll ? existingAll.checked : mainSelectedCountries.size === 0;
+
+      document.querySelectorAll('.country-cb').forEach(cb => {
+        if (cb.checked) mainSelectedCountries.add(cb.value);
+        else mainSelectedCountries.delete(cb.value);
+      });
 
       let filteredCountries = allCountries;
       if (region !== 'ALL') {
@@ -367,22 +393,60 @@
         filteredCountries = filteredCountries.filter(c => c.toLowerCase().includes(searchText));
       }
 
-      filteredCountries.forEach(c => {
-        if(c) {
-          let opt = document.createElement('option');
-          opt.value = c;
-          opt.textContent = c;
-          countrySelect.appendChild(opt);
+      container.innerHTML = '';
+
+      const allLabel = document.createElement('label');
+      allLabel.style.width = '100%';
+    const allCheckbox = document.createElement('input');
+      allCheckbox.type = 'checkbox';
+      allCheckbox.id = 'mainCountryAll';
+      allCheckbox.value = 'ALL';
+      allCheckbox.checked = allChecked;
+      allCheckbox.addEventListener('change', () => {
+        if (allCheckbox.checked) {
+          mainSelectedCountries.clear();
+          document.querySelectorAll('.country-cb').forEach(cb => cb.checked = false);
         }
+     updateMainCountrySummary();
+        updateDashboard();
+     renderTables();
+      });
+      allLabel.appendChild(allCheckbox);
+      const regionText = region === 'ALL' ? '全球' : region;
+      allLabel.appendChild(document.createTextNode(regionText + '全部国家'));
+      container.appendChild(allLabel);
+
+      filteredCountries.forEach(country => {
+        const label = document.createElement('label');
+        label.style.width = '100%';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'country-cb';
+        checkbox.value = country;
+        checkbox.checked = !allChecked && mainSelectedCountries.has(country);
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            mainSelectedCountries.add(country);
+          document.getElementById('mainCountryAll').checked = false;
+       } else {
+            mainSelectedCountries.delete(country);
+    }
+          updateMainCountrySummary();
+          updateDashboard();
+          renderTables();
+        });
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(country));
+        container.appendChild(label);
       });
 
-      if (!searchText) {
-        countrySelect.value = 'ALL';
-      } else if (autoSelect) {
-        const exactMatch = filteredCountries.find(c => c.toLowerCase() === searchText);
-        countrySelect.value = exactMatch || (filteredCountries.length === 1 ? filteredCountries[0] : 'ALL');
-      } else {
-        countrySelect.value = filteredCountries.includes(currentValue) ? currentValue : 'ALL';
+      updateMainCountrySummary();
+    }
+
+    function toggleCountryList(show) {
+      const countryFilter = document.getElementById('countryFilter');
+      if (countryFilter && show) {
+        countryFilter.style.display = 'block';
       }
     }
 
@@ -401,7 +465,7 @@
         regionSelect.appendChild(opt);
       });
 
-      updateCountryDropdown();
+      updateCountryCheckboxes();
 
       const monthContainer = document.getElementById('monthCheckboxes');
       monthContainer.innerHTML = '';
@@ -441,7 +505,7 @@
       });
 
       document.getElementById('regionFilter').style.display = 'flex';
-      document.getElementById('countryFilter').style.display = 'flex';
+      document.getElementById('countryFilterInput').style.display = 'flex';
       document.getElementById('monthFilter').style.display = 'flex';
       document.getElementById('hsCodeFilter').style.display = 'flex';
       document.getElementById('exportModule').style.display = 'block';
@@ -457,18 +521,20 @@
 
     function updateDashboard() {
       const selectedRegion = document.getElementById('regionSelect').value;
-      const selectedCountry = document.getElementById('countrySelect').value;
-      
+      const allCountryCheckbox = document.getElementById('mainCountryAll');
+      const isAllCountries = allCountryCheckbox && allCountryCheckbox.checked;
+
       const selectedHsCodeCbs = document.querySelectorAll('.hscode-cb:checked');
       const selectedHsCodes = Array.from(selectedHsCodeCbs).map(cb => cb.value);
 
       let filteredData = rawData.filter(d => selectedHsCodes.includes(d.hsCode));
-      
+
       if (selectedRegion !== 'ALL') {
-        filteredData = filteredData.filter(d => getRegion(d.country) === selectedRegion);
+     filteredData = filteredData.filter(d => getRegion(d.country) === selectedRegion);
       }
-      if (selectedCountry !== 'ALL') {
-        filteredData = filteredData.filter(d => d.country === selectedCountry);
+
+      if (!isAllCountries && mainSelectedCountries.size > 0) {
+        filteredData = filteredData.filter(d => mainSelectedCountries.has(d.country));
       }
 
       renderChartAll(filteredData);
@@ -541,9 +607,10 @@
       
       const selectedHsCodeCbs = document.querySelectorAll('.hscode-cb:checked');
       const selectedHsCodes = Array.from(selectedHsCodeCbs).map(cb => cb.value);
-      
+
       const selectedRegion = document.getElementById('regionSelect').value;
-      const selectedCountry = document.getElementById('countrySelect').value;
+      const allCountryCheckbox = document.getElementById('mainCountryAll');
+      const isAllCountries = allCountryCheckbox && allCountryCheckbox.checked;
       
       const containerAll = document.getElementById('tableAllContainer');
       const containerSep = document.getElementById('tableSeparateContainer');
@@ -581,10 +648,11 @@
         prevData = prevData.filter(d => getRegion(d.country) === selectedRegion);
         yoyData = yoyData.filter(d => getRegion(d.country) === selectedRegion);
       }
-      if (selectedCountry !== 'ALL') {
-        currentData = currentData.filter(d => d.country === selectedCountry);
-        prevData = prevData.filter(d => d.country === selectedCountry);
-        yoyData = yoyData.filter(d => d.country === selectedCountry);
+
+      if (!isAllCountries && mainSelectedCountries.size > 0) {
+        currentData = currentData.filter(d => mainSelectedCountries.has(d.country));
+        prevData = prevData.filter(d => mainSelectedCountries.has(d.country));
+        yoyData = yoyData.filter(d => mainSelectedCountries.has(d.country));
       }
 
       let countryStats = {};
@@ -625,6 +693,11 @@
         return { country: c, ...countryStats[c] };
       }).sort((a, b) => b.total - a.total);
 
+      // 只有当国家数量大于10个时，才过滤掉小于50万美元的数据
+      const dimensionOneCountries = relevantCountries.length > 10
+        ? sortedCountries.filter(item => item.total >= 500000)
+        : sortedCountries;
+
       let prevPeriodText = prevMonths.length > 0 ? `前期 (${prevMonths.join(', ')})` : "无对比前期";
       let yoyPeriodText = `去年同期 (${yoyMonths.join(', ')})`;
 
@@ -645,10 +718,10 @@
           <tbody>
       `;
       
-      if (sortedCountries.length === 0) {
-        tableAllHTML += `<tr><td colspan="7" class="text-center">该时段无数据</td></tr>`;
+      if (dimensionOneCountries.length === 0) {
+        tableAllHTML += `<tr><td colspan="7" class="text-center">该时段无满足条件的数据</td></tr>`;
       } else {
-        sortedCountries.forEach((item, idx) => {
+        dimensionOneCountries.forEach((item, idx) => {
           if (item.total === 0 && item.prevTotal === 0 && item.yoyTotal === 0) return;
           let share = globalTotal > 0 ? ((item.total / globalTotal) * 100).toFixed(2) + '%' : '0.00%';
           tableAllHTML += `
@@ -677,18 +750,18 @@
       `;
       
       selectedHsCodes.forEach(code => {
-        tableSepHTML += `<th colspan="4">编码: ${code}</th>`;
+        tableSepHTML += `<th colspan="3">编码: ${code}</th>`;
       });
       tableSepHTML += `</tr><tr>`;
       
       let dynamicPeriodText = selectedMonths.join('、') + ' 累计出口额';
       selectedHsCodes.forEach(code => {
-        tableSepHTML += `<th>${dynamicPeriodText}</th><th>环比增长率</th><th>同比增长率</th><th>同比预警 (>30% 或 <-30%)</th>`;
+        tableSepHTML += `<th>${dynamicPeriodText}</th><th>环比增长率</th><th>同比增长率</th>`;
       });
       tableSepHTML += `</tr></thead><tbody>`;
 
       if (sortedCountries.length === 0) {
-        tableSepHTML += `<tr><td colspan="${2 + selectedHsCodes.length * 4}" class="text-center">该时段无数据</td></tr>`;
+        tableSepHTML += `<tr><td colspan="${2 + selectedHsCodes.length * 3}" class="text-center">该时段无数据</td></tr>`;
       } else {
         // 计算各编码的合计
         let hsTotals = {};
@@ -717,7 +790,6 @@
             <td>${formatNumber(cVal)}</td>
             <td class="text-center">${getMoMHtml(cVal, pVal)}</td>
             <td class="text-center">${getMoMHtml(cVal, yVal)}</td>
-            <td class="text-center">${getYoYIndicator(cVal, yVal)}</td>
           `;
         });
         tableSepHTML += `</tr>`;
@@ -737,7 +809,6 @@
               <td>${formatNumber(cVal)}</td>
               <td class="text-center">${getMoMHtml(cVal, pVal)}</td>
               <td class="text-center">${getMoMHtml(cVal, yVal)}</td>
-              <td class="text-center">${getYoYIndicator(cVal, yVal)}</td>
             `;
           });
           tableSepHTML += `</tr>`;
@@ -783,10 +854,18 @@
       let option = {
         tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
         legend: { data: ['总出口额 (美元)', '环比增长率 (%)', '同比增长率 (%)'] },
-        grid: { left: '5%', right: '5%', bottom: '10%' },
+        grid: { left: '8%', right: '5%', bottom: '10%' },
         xAxis: [{ type: 'category', data: allMonths, axisPointer: { type: 'shadow' } }],
         yAxis: [
-          { type: 'value', name: '出口额 (美元)', axisLabel: { formatter: '{value}' } },
+          {
+            type: 'value',
+      name: '出口额',
+            axisLabel: {
+              formatter: function(value) {
+            return Math.round(value / 1000000) + 'M';
+              }
+            }
+          },
           { type: 'value', name: '增长率 (%)', axisLabel: { formatter: '{value} %' }, splitLine: { show: false } }
         ],
         series: [
@@ -840,36 +919,50 @@
     function renderChartSeparate(data, selectedHsCodes) {
       let series = [];
       let legendData = [];
-      const colors = ['#91CC75', '#FAC858', '#73C0DE', '#3BA272', '#FC8452', '#9A60B4'];
+      const colors = ['#5470C6', '#EE6666', '#91CC75', '#FAC858', '#73C0DE', '#FC8452', '#9A60B4', '#EA7CCC'];
 
       selectedHsCodes.forEach((code, index) => {
         let monthlyValues = allMonths.map(m => {
           return data.filter(d => d.month === m && d.hsCode === code).reduce((sum, d) => sum + d.value, 0);
         });
-        let mom = calculateMoM(monthlyValues);
-        let yoy = calculateYoY(monthlyValues, allMonths);
         let color = colors[index % colors.length];
 
-        legendData.push(code + ' 出口额');
-        series.push({ name: code + ' 出口额', type: 'bar', data: monthlyValues.map(v => Math.round(v)), itemStyle: { color: color } });
-
-        legendData.push(code + ' 环比');
-        series.push({ name: code + ' 环比', type: 'line', yAxisIndex: 1, data: mom, itemStyle: { color: color, type: 'dashed' }, symbol: 'circle', symbolSize: 6 });
-
-        legendData.push(code + ' 同比');
-        series.push({ name: code + ' 同比', type: 'line', yAxisIndex: 1, data: yoy, itemStyle: { color: color, type: 'dotted' }, symbol: 'triangle', symbolSize: 6 });
+      legendData.push(code);
+        series.push({
+        name: code,
+          type: 'bar',
+          data: monthlyValues.map(v => Math.round(v)),
+          itemStyle: { color: color }
+        });
       });
 
       let option = {
-        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        tooltip: {
+          trigger: 'axis',
+     axisPointer: { type: 'shadow' },
+        formatter: function(params) {
+            let result = params[0].name + '<br/>';
+            params.forEach(item => {
+              result += item.marker + item.seriesName + ': ' + item.value.toLocaleString('en-US') + ' 美元<br/>';
+            });
+         return result;
+          }
+        },
         legend: { data: legendData, top: 0, type: 'scroll' },
-        grid: { left: '5%', right: '5%', bottom: '10%', top: '15%' },
-        xAxis: [{ type: 'category', data: allMonths, axisPointer: { type: 'shadow' } }],
+        grid: { left: '8%', right: '5%', bottom: '10%', top: '15%' },
+      xAxis: [{ type: 'category', data: allMonths, axisPointer: { type: 'shadow' } }],
         yAxis: [
-          { type: 'value', name: '出口额 (美元)', axisLabel: { formatter: '{value}' } },
-          { type: 'value', name: '增长率 (%)', axisLabel: { formatter: '{value} %' }, splitLine: { show: false } }
+          {
+         type: 'value',
+            name: '出口额',
+            axisLabel: {
+              formatter: function(value) {
+             return Math.round(value / 1000000) + 'M';
+            }
+            }
+       }
         ],
-        series: series
+      series: series
       };
       chartSeparateInstance.setOption(option, true);
     }
