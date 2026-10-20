@@ -278,7 +278,9 @@
 
       for (const url of urls) {
         try {
-          const response = await fetch(url);
+          // Use a cache-busting query string so updated CSV files are fetched
+          // instead of an older browser or CDN-cached copy.
+          const response = await fetch(`${url}?v=${Date.now()}`, { cache: 'no-store' });
           if (!response.ok) {
             throw new Error(`HTTP 状态码: ${response.status}`);
           }
